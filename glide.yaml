@@ -1,0 +1,3 @@
+package: github.com/sh0rez/luxtronik2-exporter
+import:
+- package: github.com/sacOO7/GoWebsocket
