@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	lux := luxtronik.Connect("172.21.20.103", "215318")
+	lux := luxtronik.Connect("172.21.20.103")
 
 	var wg sync.WaitGroup
 	wg.Add(1)

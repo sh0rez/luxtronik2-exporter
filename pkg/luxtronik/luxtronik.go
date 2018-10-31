@@ -47,7 +47,7 @@ func (l *Luxtronik) Refresh(wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-func Connect(ip string, passwd string) *Luxtronik {
+func Connect(ip string) *Luxtronik {
 	var lux Luxtronik
 	lux.socket = gowebsocket.New("ws://" + ip + ":8214")
 	lux.socket.ConnectionOptions = gowebsocket.ConnectionOptions{
@@ -61,7 +61,7 @@ func Connect(ip string, passwd string) *Luxtronik {
 	}
 
 	// Make first request to get the ID of the metrics
-	id := login(passwd, &lux.c, &lux.socket)
+	id := login(&lux.c, &lux.socket)
 
 	// Request the values, set the target
 	lux.socket.SendText("GET;" + id)
@@ -79,8 +79,9 @@ func Connect(ip string, passwd string) *Luxtronik {
 	return &lux
 }
 
-func login(passwd string, c *chan string, socket *gowebsocket.Socket) string {
-	socket.SendText("LOGIN;" + passwd)
+func login(c *chan string, socket *gowebsocket.Socket) string {
+	// supply invalid password here, read-only password is fine
+	socket.SendText("LOGIN;1654")
 	response := <-*c
 
 	var structure content
