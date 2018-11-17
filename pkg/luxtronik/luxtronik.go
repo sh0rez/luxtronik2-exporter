@@ -10,6 +10,17 @@ import (
 	gowebsocket "github.com/sacOO7/GoWebsocket"
 )
 
+type Filter struct {
+	Match struct {
+		Key   string `yaml:"key"`
+		Value string `yaml:"value"`
+	} `yaml:"match"`
+	Set struct {
+		Key   string `yaml:"key"`
+		Value string `yaml:"value"`
+	} `yaml:"set"`
+}
+
 type Luxtronik struct {
 	idRef  map[string]location
 	data   map[string]map[string]string
@@ -51,7 +62,7 @@ func (l *Luxtronik) Refresh(wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-func Connect(ip string) *Luxtronik {
+func Connect(ip string, filters []Filter) *Luxtronik {
 	var lux Luxtronik
 	lux.socket = gowebsocket.New("ws://" + ip + ":8214")
 	lux.socket.ConnectionOptions = gowebsocket.ConnectionOptions{
@@ -62,46 +73,17 @@ func Connect(ip string) *Luxtronik {
 	lux.c = make(chan string)
 	lux.socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		lux.c <- message
+		fmt.Println("Connected.")
 	}
 
 	// Make first request to get the ID of the metrics
 	id := login(&lux.c, &lux.socket)
 
-	// Request the values, set the target
+	// Request the values, set the target, parse the response
 	lux.socket.SendText("GET;" + id)
-
-	// setup filters
-	filters := map[int]filter{
-		0: func(domain, key, value string) (string, string) {
-			// Adds _state to luxtronik input/output states
-			if domain == "ausgänge" {
-			} else {
-				if domain != "eingänge" {
-					return "", "" // get ignored
-				}
-
-				keys := []string{"asd", "evu", "hd", "mot"}
-
-				ok := false
-				for _, k := range keys {
-					if k == key {
-						ok = true
-					}
-				}
-				if !ok {
-					return "", ""
-				}
-			}
-
-			if strings.Contains(value, "Aus") || strings.Contains(value, "Ein") {
-				key = key + "_state"
-			}
-
-			return domain, key
-		},
-	}
 	lux.data, lux.idRef = parseStructure(<-lux.c, filters)
 
+	// register update func
 	lux.socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		var updatedVals category
 		err := xml.Unmarshal([]byte(message), &updatedVals)
