@@ -1,10 +1,14 @@
 package luxtronik
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"regexp"
 	"strings"
+	"text/template"
+
+	"github.com/Masterminds/sprig"
 )
 
 // Luxtronik XML types
@@ -56,10 +60,15 @@ func parseStructure(response string, filters []Filter) (data map[string]map[stri
 				field:  strings.ToLower(i.Name),
 			}
 
+		filterLoop:
 			for _, f := range filters {
-				// fmt.Println("filtering", f)
 				if regexp.MustCompile(f.Match.Value).MatchString(i.Value) {
-					i.Value = f.Match.Value
+					var tpl bytes.Buffer
+					if err := template.Must(template.New("val").Funcs(sprig.TxtFuncMap()).Parse(f.Set.Value)).Execute(&tpl, i.Value); err != nil {
+						panic(err)
+					}
+					i.Value = strings.TrimSpace(tpl.String())
+					break filterLoop
 				}
 			}
 
@@ -67,7 +76,7 @@ func parseStructure(response string, filters []Filter) (data map[string]map[stri
 			data[loc.domain][loc.field] = i.Value
 
 			// Store references where we put the data for easier updating
-			fmt.Println("Assign", i.ID, loc.domain, loc.field)
+			fmt.Println("Assign", i.ID, loc.domain, loc.field, i.Value)
 			idRef[i.ID] = loc
 		}
 	}

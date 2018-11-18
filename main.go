@@ -19,14 +19,12 @@ func main() {
 	var filters []luxtronik.Filter
 	yaml.Unmarshal([]byte(filterSpec), &filters)
 
-	// fmt.Println(filters)
-
 	lux := luxtronik.Connect("172.21.20.103", filters)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go lux.Refresh(&wg)
 
-	fmt.Println(lux.Value("eingänge", "evu"))
+	fmt.Println(lux.Value("eingänge", "asd"))
 
 	// in := func(s string) bool {
 	// 	for _, u := range use {

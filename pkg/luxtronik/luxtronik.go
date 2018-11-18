@@ -73,7 +73,6 @@ func Connect(ip string, filters []Filter) *Luxtronik {
 	lux.c = make(chan string)
 	lux.socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		lux.c <- message
-		fmt.Println("Connected.")
 	}
 
 	// Make first request to get the ID of the metrics
