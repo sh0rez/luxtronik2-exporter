@@ -58,6 +58,14 @@
   version = "v1.4.0"
 
 [[projects]]
+  digest = "1:336a3f4034b62469e9adf046b084fa7b8b756339d5cff9e61bbd810adece75d5"
+  name = "github.com/gosimple/slug"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "283c8d10b72e48ecfd721b1739de574713e57a0b"
+  version = "v1.3.0"
+
+[[projects]]
   digest = "1:f9a5e090336881be43cfc1cf468330c1bdd60abdc9dd194e0b1ab69f4b94dd7c"
   name = "github.com/huandu/xstrings"
   packages = ["."]
@@ -128,6 +136,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:e6a29574542c00bb18adb1bfbe629ff88c468c2af2e2e953d3e58eda07165086"
+  name = "github.com/rainycape/unidecode"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "cb7f23ec59bec0d61b19c56cd88cee3d0cc1870c"
+
+[[projects]]
+  branch = "master"
   digest = "1:931feb87c76bd3d646a97e958e1573f2bf0a4443b06c329ac339b24050653ca6"
   name = "github.com/sacOO7/GoWebsocket"
   packages = ["."]
@@ -166,6 +182,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Masterminds/sprig",
+    "github.com/gosimple/slug",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/sacOO7/GoWebsocket",

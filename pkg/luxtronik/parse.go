@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig"
+	"github.com/gosimple/slug"
 )
 
 // Luxtronik XML types
@@ -53,11 +54,11 @@ func parseStructure(response string, filters []Filter) (data map[string]map[stri
 	idRef = make(map[string]location)
 
 	for _, cat := range structure.Categories {
-		data[strings.ToLower(cat.Name)] = make(map[string]string)
+		data[slug.MakeLang(strings.ToLower(cat.Name), "de")] = make(map[string]string)
 		for _, i := range cat.Items {
 			loc := location{
-				domain: strings.ToLower(cat.Name),
-				field:  strings.ToLower(i.Name),
+				domain: slug.MakeLang(strings.ToLower(cat.Name), "de"),
+				field:  slug.MakeLang(strings.ToLower(i.Name), "de"),
 			}
 
 		filterLoop:
