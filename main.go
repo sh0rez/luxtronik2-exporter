@@ -1,11 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
-	"sync"
+	"strconv"
+	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sh0rez/luxtronik2-exporter/pkg/luxtronik"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -16,86 +21,58 @@ func main() {
 		panic(err)
 	}
 
-	var filters []luxtronik.Filter
+	var filters luxtronik.Filters
 	yaml.Unmarshal([]byte(filterSpec), &filters)
 
 	lux := luxtronik.Connect("172.21.20.103", filters)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go lux.Refresh(&wg)
 
-	fmt.Println(lux.Value("eingänge", "asd"))
+	type jsonMetric struct {
+		Unit  string `json:"unit"`
+		Value string `json:"value"`
+	}
 
-	// in := func(s string) bool {
-	// 	for _, u := range use {
-	// 		if s == u {
-	// 			return true
-	// 		}
-	// 	}
-	// 	return false
-	// }
+	var gauges = make(map[string]*prometheus.GaugeVec)
+	for name := range lux.Domains() {
+		gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "luxtronik",
+			Name:      name,
+		},
+			[]string{
+				"attr",
+			},
+		)
+		prometheus.MustRegister(gauge)
+		gauges[name] = gauge
+	}
 
-	// for name, domain := range lux.Domains() {
-	// 	if !in(name) {
-	// 		continue
-	// 	}
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(":2112", nil)
+	}()
 
-	// 	name = strings.Replace(name, "ä", "ae", -1)
-	// 	gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-	// 		Namespace: "luxtronik",
-	// 		Name:      name,
-	// 	},
-	// 		[]string{
-	// 			"attr",
-	// 		},
-	// 	)
-	// 	prometheus.MustRegister(gauge)
-	// }
+	for {
+		for name, domain := range lux.Domains() {
+			gauge := gauges[name]
+			for field, value := range domain {
+				var jv jsonMetric
+				err := json.Unmarshal([]byte(value), &jv)
 
-	// go func() {
-	// 	http.Handle("/metrics", promhttp.Handler())
-	// 	http.ListenAndServe(":2112", nil)
-	// }()
+				v, err := strconv.ParseFloat(jv.Value, 64)
+				if err != nil {
+					fmt.Println("Error: failed to parse", name, field, jv.Value)
+					continue
+				}
 
-	// for {
-	// 	for name, domain := range lux.Domains() {
+				id := field
+				if jv.Unit != "" {
+					id = id + "_" + jv.Unit
+				}
 
-	// 		var (
-	// 			v   float64
-	// 			err error
-	// 			id  string
-	// 		)
-	// 		for field, value := range domain {
-	// 			// Convert "Ein"/"Aus to bool"
-	// 			if strings.Contains(value, "Ein") || strings.Contains(value, "Aus") {
-	// 				v = 1
-	// 				if value == "Aus" {
-	// 					v = 0
-	// 				}
-	// 				id = field
-	// 			} else {
-	// 				// numeric value filter
-	// 				// Splits according to separator. Usually whitespace, but degree for temperatures.
-	// 				var split string
-	// 				if strings.Contains(value, " ") {
-	// 					split = " "
-	// 				} else if strings.Contains(value, "°") {
-	// 					split = "°"
-	// 				}
-	// 				val := strings.Split(value, split)
-
-	// 				v, err = strconv.ParseFloat(val[0], 64)
-	// 				if err != nil {
-	// 					continue
-	// 				}
-	// 				id = field + "_" + val[1]
-	// 			}
-
-	// 			fmt.Println(id)
-	// 			gauge.WithLabelValues(id).Set(v)
-	// 		}
-	// 	}
-	// 	time.Sleep(time.Second)
-	// }
+				gauge.WithLabelValues(id).Set(v)
+				fmt.Println("registered", id, v)
+			}
+		}
+		time.Sleep(time.Second)
+	}
 
 }

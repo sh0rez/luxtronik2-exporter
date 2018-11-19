@@ -33,14 +33,23 @@ type location struct {
 	domain, field string
 }
 
-type filter func(domain, key, value string) (string, string)
+type Filters []struct {
+	Match struct {
+		Key   string `yaml:"key"`
+		Value string `yaml:"value"`
+	} `yaml:"match"`
+	Set struct {
+		Key   string `yaml:"key"`
+		Value string `yaml:"value"`
+	} `yaml:"set"`
+}
 
 // parseStructure converts the structure supplied by luxtronik into the internally used one.
 //
 // Luxtronik uses a flat key-value store. This is hard to use and requires processing on every query.
 // Instead, we go with a two-dimensional map containing the data in the way it would be queried and maintain
 // a mapping of luxtronik's ID's to the place where we put the data.
-func parseStructure(response string, filters []Filter) (data map[string]map[string]string, idRef map[string]location) {
+func parseStructure(response string, filters Filters) (data map[string]map[string]string, idRef map[string]location) {
 	var structure content
 	err := xml.Unmarshal([]byte(response), &structure)
 	if err != nil {
@@ -56,30 +65,46 @@ func parseStructure(response string, filters []Filter) (data map[string]map[stri
 	for _, cat := range structure.Categories {
 		data[slug.MakeLang(strings.ToLower(cat.Name), "de")] = make(map[string]string)
 		for _, i := range cat.Items {
-			loc := location{
-				domain: slug.MakeLang(strings.ToLower(cat.Name), "de"),
-				field:  slug.MakeLang(strings.ToLower(i.Name), "de"),
-			}
-
-		filterLoop:
-			for _, f := range filters {
-				if regexp.MustCompile(f.Match.Value).MatchString(i.Value) {
-					var tpl bytes.Buffer
-					if err := template.Must(template.New("val").Funcs(sprig.TxtFuncMap()).Parse(f.Set.Value)).Execute(&tpl, i.Value); err != nil {
-						panic(err)
-					}
-					i.Value = strings.TrimSpace(tpl.String())
-					break filterLoop
-				}
-			}
+			loc, val := filters.filter(cat.Name, i.Name, i.Value)
 
 			// Store the data domain-field based
-			data[loc.domain][loc.field] = i.Value
+			data[loc.domain][loc.field] = val
 
 			// Store references where we put the data for easier updating
-			fmt.Println("Assign", i.ID, loc.domain, loc.field, i.Value)
+			fmt.Println("Assign", i.ID, loc.domain, loc.field, val)
 			idRef[i.ID] = loc
 		}
 	}
 	return data, idRef
+}
+
+func (filters Filters) filter(cat, field, value string) (location, string) {
+	loc := location{
+		domain: slug.MakeLang(strings.ToLower(cat), "de"),
+		field:  slug.MakeLang(strings.ToLower(field), "de"),
+	}
+
+filterLoop:
+	for _, f := range filters {
+		if regexp.MustCompile(f.Match.Value).MatchString(value) {
+			var val, key bytes.Buffer
+			err := template.Must(template.New("val").Funcs(sprig.TxtFuncMap()).Parse(f.Set.Value)).Execute(&val, value)
+			if err != nil {
+				panic(err)
+			}
+
+			err = template.Must(template.New("key").Funcs(sprig.TxtFuncMap()).Parse(f.Set.Key)).Execute(&key, loc.field)
+			if err != nil {
+				panic(err)
+			}
+
+			value = strings.TrimSpace(val.String())
+			if strings.TrimSpace(key.String()) != "" {
+				loc.field = strings.TrimSpace(key.String())
+			}
+			break filterLoop
+		}
+	}
+
+	return loc, value
 }

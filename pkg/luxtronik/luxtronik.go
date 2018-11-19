@@ -4,22 +4,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	gowebsocket "github.com/sacOO7/GoWebsocket"
 )
-
-type Filter struct {
-	Match struct {
-		Key   string `yaml:"key"`
-		Value string `yaml:"value"`
-	} `yaml:"match"`
-	Set struct {
-		Key   string `yaml:"key"`
-		Value string `yaml:"value"`
-	} `yaml:"set"`
-}
 
 type Luxtronik struct {
 	idRef  map[string]location
@@ -36,7 +24,7 @@ func (l *Luxtronik) Domains() map[string]map[string]string {
 	return l.data
 }
 
-func (l *Luxtronik) update(new []item) {
+func (l *Luxtronik) update(new []item, filters Filters) {
 	var domain, field string
 	for _, updated := range new {
 		// luxtronik returns values we did not requested (!?). Ignore those
@@ -47,22 +35,16 @@ func (l *Luxtronik) update(new []item) {
 		domain = l.idRef[updated.ID].domain
 		field = l.idRef[updated.ID].field
 
-		if l.data[domain][field] != updated.Value {
-			l.data[domain][field] = updated.Value
-			fmt.Println("Updated", updated.ID, domain, field, updated.Value)
+		loc, val := filters.filter(domain, field, updated.Value)
+
+		if l.data[loc.domain][loc.field] != val {
+			l.data[loc.domain][loc.field] = val
+			fmt.Println("Updated", updated.ID, loc.domain, loc.field, val)
 		}
 	}
 }
 
-func (l *Luxtronik) Refresh(wg *sync.WaitGroup) {
-	for {
-		l.socket.SendText("REFRESH")
-		time.Sleep(time.Second)
-	}
-	wg.Done()
-}
-
-func Connect(ip string, filters []Filter) *Luxtronik {
+func Connect(ip string, filters Filters) *Luxtronik {
 	var lux Luxtronik
 	lux.socket = gowebsocket.New("ws://" + ip + ":8214")
 	lux.socket.ConnectionOptions = gowebsocket.ConnectionOptions{
@@ -89,8 +71,15 @@ func Connect(ip string, filters []Filter) *Luxtronik {
 		if err != nil {
 			panic(err)
 		}
-		lux.update(updatedVals.Items)
+		lux.update(updatedVals.Items, filters)
 	}
+
+	go func() {
+		for {
+			lux.socket.SendText("REFRESH")
+			time.Sleep(time.Second)
+		}
+	}()
 
 	return &lux
 }
