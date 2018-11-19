@@ -2,18 +2,20 @@ package luxtronik
 
 import (
 	"encoding/xml"
-	"fmt"
 	"strings"
 	"time"
 
 	gowebsocket "github.com/sacOO7/GoWebsocket"
+	log "github.com/sirupsen/logrus"
 )
 
 type Luxtronik struct {
-	idRef  map[string]location
+	idRef  map[string]Location
 	data   map[string]map[string]string
 	socket gowebsocket.Socket
 	c      chan string
+
+	onUpdate func(new []Location)
 }
 
 func (l *Luxtronik) Value(domain, key string) string {
@@ -39,17 +41,30 @@ func (l *Luxtronik) update(new []item, filters Filters) {
 
 		if l.data[loc.domain][loc.field] != val {
 			l.data[loc.domain][loc.field] = val
-			fmt.Println("Updated", updated.ID, loc.domain, loc.field, val)
+			log.WithFields(log.Fields{
+				"domain": loc.domain,
+				"field":  loc.field,
+				"value":  val,
+				"id":     updated.ID,
+			}).Debug("set value")
 		}
 	}
 }
 
 func Connect(ip string, filters Filters) *Luxtronik {
+	log.WithField("ip", ip).Info("Connecting to heatpump")
 	var lux Luxtronik
 	lux.socket = gowebsocket.New("ws://" + ip + ":8214")
 	lux.socket.ConnectionOptions = gowebsocket.ConnectionOptions{
 		Subprotocols: []string{"Lux_WS"},
 	}
+	lux.socket.OnConnected = func(socket gowebsocket.Socket) {
+		log.WithField("to", socket.Url).Info("Connection established successfully")
+	}
+	lux.socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
+		log.WithField("error", err).Error("connection failed")
+	}
+
 	lux.socket.Connect()
 
 	lux.c = make(chan string)
@@ -86,7 +101,7 @@ func Connect(ip string, filters Filters) *Luxtronik {
 
 func login(c *chan string, socket *gowebsocket.Socket) string {
 	// supply invalid password here, read-only password is fine
-	socket.SendText("LOGIN;215318")
+	socket.SendText("LOGIN;0")
 	response := <-*c
 
 	var structure content

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -12,10 +11,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sh0rez/luxtronik2-exporter/pkg/luxtronik"
+	log "github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
 
 func main() {
+	// log.SetLevel(log.DebugLevel)
 	filterSpec, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
 		panic(err)
@@ -59,7 +60,12 @@ func main() {
 
 				v, err := strconv.ParseFloat(jv.Value, 64)
 				if err != nil {
-					fmt.Println("Error: failed to parse", name, field, jv.Value)
+					log.WithFields(
+						log.Fields{
+							"domain": name,
+							"field":  field,
+							"value":  value,
+						}).Warn("metric value parse failure")
 					continue
 				}
 
@@ -69,10 +75,12 @@ func main() {
 				}
 
 				gauge.WithLabelValues(id).Set(v)
-				fmt.Println("registered", id, v)
+				log.WithFields(log.Fields{
+					"id":    id,
+					"value": v,
+				}).Info("updated metric")
 			}
 		}
 		time.Sleep(time.Second)
 	}
-
 }

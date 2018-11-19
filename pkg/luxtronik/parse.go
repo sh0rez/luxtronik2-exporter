@@ -3,13 +3,13 @@ package luxtronik
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig"
 	"github.com/gosimple/slug"
+	log "github.com/sirupsen/logrus"
 )
 
 // Luxtronik XML types
@@ -29,7 +29,7 @@ type item struct {
 }
 
 // Internal types
-type location struct {
+type Location struct {
 	domain, field string
 }
 
@@ -49,7 +49,7 @@ type Filters []struct {
 // Luxtronik uses a flat key-value store. This is hard to use and requires processing on every query.
 // Instead, we go with a two-dimensional map containing the data in the way it would be queried and maintain
 // a mapping of luxtronik's ID's to the place where we put the data.
-func parseStructure(response string, filters Filters) (data map[string]map[string]string, idRef map[string]location) {
+func parseStructure(response string, filters Filters) (data map[string]map[string]string, idRef map[string]Location) {
 	var structure content
 	err := xml.Unmarshal([]byte(response), &structure)
 	if err != nil {
@@ -59,8 +59,8 @@ func parseStructure(response string, filters Filters) (data map[string]map[strin
 	// Stores the data sorted in domain and field
 	data = make(map[string]map[string]string)
 
-	// Maps luxtronik ID's to the actual location in the data map. This represents luxtroniks way of storing the data.
-	idRef = make(map[string]location)
+	// Maps luxtronik ID's to the actual Location in the data map. This represents luxtroniks way of storing the data.
+	idRef = make(map[string]Location)
 
 	for _, cat := range structure.Categories {
 		data[slug.MakeLang(strings.ToLower(cat.Name), "de")] = make(map[string]string)
@@ -71,15 +71,20 @@ func parseStructure(response string, filters Filters) (data map[string]map[strin
 			data[loc.domain][loc.field] = val
 
 			// Store references where we put the data for easier updating
-			fmt.Println("Assign", i.ID, loc.domain, loc.field, val)
+			log.WithFields(log.Fields{
+				"domain": loc.domain,
+				"field":  loc.field,
+				"value":  val,
+				"lux_id": i.ID,
+			}).Debug("set value")
 			idRef[i.ID] = loc
 		}
 	}
 	return data, idRef
 }
 
-func (filters Filters) filter(cat, field, value string) (location, string) {
-	loc := location{
+func (filters Filters) filter(cat, field, value string) (Location, string) {
+	loc := Location{
 		domain: slug.MakeLang(strings.ToLower(cat), "de"),
 		field:  slug.MakeLang(strings.ToLower(field), "de"),
 	}
