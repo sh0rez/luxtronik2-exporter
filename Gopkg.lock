@@ -82,6 +82,14 @@
   version = "v0.3.6"
 
 [[projects]]
+  digest = "1:0a69a1c0db3591fcefb47f115b224592c8dfa4368b7ba9fae509d5e16cdc95c8"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:ff5ebae34cfbf047d505ee150de27e60570e8c394b3b8fdbb720ff6ac71985fc"
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
@@ -159,15 +167,35 @@
   revision = "9ac9add5a50dd3649add2c4e1edaeade5c5afed7"
 
 [[projects]]
+  digest = "1:69b1cc331fca23d702bd72f860c6a647afd0aa9fcbc1d0659b1365e26546dd70"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bcd833dfe83d3cebad139e4a29ed79cb2318bf95"
+  version = "v1.2.0"
+
+[[projects]]
   branch = "master"
-  digest = "1:dd658e9008df9e0bea1ddb2caa3df8250e5e42bf54dcb776ed5bef0496395549"
+  digest = "1:15e78183e2b04229a20cf384c2d911812970727ba34800fbe18cd35005a529fa"
   name = "golang.org/x/crypto"
   packages = [
     "pbkdf2",
     "scrypt",
+    "ssh/terminal",
   ]
   pruneopts = "UT"
   revision = "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a089387bbfcfa884e5aafeebb85929993195bb8959766b1d20102841d47e0b0e"
+  name = "golang.org/x/sys"
+  packages = [
+    "unix",
+    "windows",
+  ]
+  pruneopts = "UT"
+  revision = "93218def8b18e66adbdab3eca8ec334700329f1f"
 
 [[projects]]
   digest = "1:342378ac4dcb378a5448dd723f0784ae519383532f5e70ade24132c4c8693202"
@@ -186,6 +214,7 @@
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/sacOO7/GoWebsocket",
+    "github.com/sirupsen/logrus",
     "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
