@@ -2,40 +2,29 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
-	"fmt"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 
+	"github.com/fatih/structs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sh0rez/luxtronik2-exporter/pkg/luxtronik"
 	log "github.com/sirupsen/logrus"
-	yaml "gopkg.in/yaml.v2"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 var gauges = make(map[string]*prometheus.GaugeVec)
-var filterFile = flag.String("f", "", "filter configuration")
+
+type Config struct {
+	Address string `flag:"address" short:"a" help:"IP or hostname of the heatpump"`
+	Filters luxtronik.Filters
+}
 
 func main() {
-	flag.Parse()
-	// log.SetLevel(log.DebugLevel)
-	if *filterFile == "" {
-		fmt.Println("filter file not specified")
-		flag.Usage()
-		os.Exit(1)
-	}
-	filterSpec, err := ioutil.ReadFile(*filterFile)
-	if err != nil {
-		panic(err)
-	}
+	config := getConfig()
 
-	var filters luxtronik.Filters
-	yaml.Unmarshal([]byte(filterSpec), &filters)
-
-	lux := luxtronik.Connect("172.21.20.103", filters)
+	lux := luxtronik.Connect(config.Address, config.Filters)
 
 	for name := range lux.Domains() {
 		gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -68,6 +57,33 @@ func main() {
 
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(":2112", nil)
+}
+
+func getConfig() *Config {
+
+	viper.SetConfigName("lux")
+	viper.AddConfigPath(".")
+
+	for _, s := range structs.Fields(Config{}) {
+		if s.Tag("flag") != "" {
+			pflag.StringP(s.Tag("flag"), s.Tag("short"), s.Tag("default"), s.Tag("help"))
+		}
+	}
+	viper.BindPFlags(pflag.CommandLine)
+	pflag.Parse()
+
+	viper.SetEnvPrefix("lux")
+	viper.AutomaticEnv()
+
+	var config Config
+	if err := viper.ReadInConfig(); err != nil {
+		log.WithField("err", err).Fatal("Error getting config from sources")
+	}
+	if err := viper.Unmarshal(&config); err != nil {
+		log.Error(err)
+		log.WithField("err", err).Fatal("invalid config")
+	}
+	return &config
 }
 
 type jsonMetric struct {
