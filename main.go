@@ -14,18 +14,23 @@ import (
 	"github.com/spf13/viper"
 )
 
+// metrics
 var gauges = make(map[string]*prometheus.GaugeVec)
 
+// Config holds the configuration structure
 type Config struct {
 	Address string `flag:"address" short:"a" help:"IP or hostname of the heatpump"`
 	Filters luxtronik.Filters
 }
 
 func main() {
+	// get config from viper
 	config := getConfig()
 
+	// connect to the heatpump
 	lux := luxtronik.Connect(config.Address, config.Filters)
 
+	// create gauge metric for each domain
 	for name := range lux.Domains() {
 		gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "luxtronik",
@@ -39,6 +44,8 @@ func main() {
 		gauges[name] = gauge
 	}
 
+	// register update handler, gets called by the update routine
+	// updates changed metrics
 	lux.OnUpdate = func(new []luxtronik.Location) {
 		for _, loc := range new {
 			domain := loc.Domain
@@ -49,21 +56,26 @@ func main() {
 		}
 	}
 
+	// expose all known values as metric
 	for domainName, domains := range lux.Domains() {
 		for field, value := range domains {
 			setMetric(domainName, field, value)
 		}
 	}
 
+	// serve the /metrics endpoint
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(":2112", nil)
 }
 
+// getConfig returns the configuration from flag, environment variable and file, prioritize in that order.
 func getConfig() *Config {
 
+	// file config
 	viper.SetConfigName("lux")
 	viper.AddConfigPath(".")
 
+	// flag config
 	for _, s := range structs.Fields(Config{}) {
 		if s.Tag("flag") != "" {
 			pflag.StringP(s.Tag("flag"), s.Tag("short"), s.Tag("default"), s.Tag("help"))
@@ -72,9 +84,11 @@ func getConfig() *Config {
 	viper.BindPFlags(pflag.CommandLine)
 	pflag.Parse()
 
+	// env config
 	viper.SetEnvPrefix("lux")
 	viper.AutomaticEnv()
 
+	// unmarshal sources
 	var config Config
 	if err := viper.ReadInConfig(); err != nil {
 		log.WithField("err", err).Fatal("Error getting config from sources")
@@ -86,11 +100,13 @@ func getConfig() *Config {
 	return &config
 }
 
+// jsonMetric represents the json-representation of a metric, created by the filter rules
 type jsonMetric struct {
 	Unit  string `json:"unit"`
 	Value string `json:"value"`
 }
 
+// setMetric updates sets the gauge of a metric to a value
 func setMetric(domain, field, value string) {
 	gauge := gauges[domain]
 
