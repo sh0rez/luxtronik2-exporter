@@ -30,7 +30,7 @@ type item struct {
 
 // Internal types
 type Location struct {
-	domain, field string
+	Domain, Field string
 }
 
 type Filters []struct {
@@ -56,7 +56,7 @@ func parseStructure(response string, filters Filters) (data map[string]map[strin
 		panic(err)
 	}
 
-	// Stores the data sorted in domain and field
+	// Stores the data sorted in Domain and Field
 	data = make(map[string]map[string]string)
 
 	// Maps luxtronik ID's to the actual Location in the data map. This represents luxtroniks way of storing the data.
@@ -67,13 +67,13 @@ func parseStructure(response string, filters Filters) (data map[string]map[strin
 		for _, i := range cat.Items {
 			loc, val := filters.filter(cat.Name, i.Name, i.Value)
 
-			// Store the data domain-field based
-			data[loc.domain][loc.field] = val
+			// Store the data Domain-Field based
+			data[loc.Domain][loc.Field] = val
 
 			// Store references where we put the data for easier updating
 			log.WithFields(log.Fields{
-				"domain": loc.domain,
-				"field":  loc.field,
+				"domain": loc.Domain,
+				"field":  loc.Field,
 				"value":  val,
 				"lux_id": i.ID,
 			}).Debug("set value")
@@ -85,8 +85,8 @@ func parseStructure(response string, filters Filters) (data map[string]map[strin
 
 func (filters Filters) filter(cat, field, value string) (Location, string) {
 	loc := Location{
-		domain: slug.MakeLang(strings.ToLower(cat), "de"),
-		field:  slug.MakeLang(strings.ToLower(field), "de"),
+		Domain: slug.MakeLang(strings.ToLower(cat), "de"),
+		Field:  slug.MakeLang(strings.ToLower(field), "de"),
 	}
 
 filterLoop:
@@ -98,14 +98,14 @@ filterLoop:
 				panic(err)
 			}
 
-			err = template.Must(template.New("key").Funcs(sprig.TxtFuncMap()).Parse(f.Set.Key)).Execute(&key, loc.field)
+			err = template.Must(template.New("key").Funcs(sprig.TxtFuncMap()).Parse(f.Set.Key)).Execute(&key, loc.Field)
 			if err != nil {
 				panic(err)
 			}
 
 			value = strings.TrimSpace(val.String())
 			if strings.TrimSpace(key.String()) != "" {
-				loc.field = strings.TrimSpace(key.String())
+				loc.Field = strings.TrimSpace(key.String())
 			}
 			break filterLoop
 		}

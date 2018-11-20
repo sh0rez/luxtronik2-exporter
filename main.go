@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -14,6 +13,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
+
+var gauges = make(map[string]*prometheus.GaugeVec)
 
 func main() {
 	// log.SetLevel(log.DebugLevel)
@@ -27,12 +28,6 @@ func main() {
 
 	lux := luxtronik.Connect("172.21.20.103", filters)
 
-	type jsonMetric struct {
-		Unit  string `json:"unit"`
-		Value string `json:"value"`
-	}
-
-	var gauges = make(map[string]*prometheus.GaugeVec)
 	for name := range lux.Domains() {
 		gauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "luxtronik",
@@ -46,41 +41,56 @@ func main() {
 		gauges[name] = gauge
 	}
 
-	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(":2112", nil)
-	}()
+	lux.OnUpdate = func(new []luxtronik.Location) {
+		for _, loc := range new {
+			domain := loc.Domain
+			field := loc.Field
+			value := lux.Value(domain, field)
 
-	for {
-		for name, domain := range lux.Domains() {
-			gauge := gauges[name]
-			for field, value := range domain {
-				var jv jsonMetric
-				err := json.Unmarshal([]byte(value), &jv)
-
-				v, err := strconv.ParseFloat(jv.Value, 64)
-				if err != nil {
-					log.WithFields(
-						log.Fields{
-							"domain": name,
-							"field":  field,
-							"value":  value,
-						}).Warn("metric value parse failure")
-					continue
-				}
-
-				id := field
-				if jv.Unit != "" {
-					id = id + "_" + jv.Unit
-				}
-
-				gauge.WithLabelValues(id).Set(v)
-				log.WithFields(log.Fields{
-					"id":    id,
-					"value": v,
-				}).Info("updated metric")
-			}
+			setMetric(domain, field, value)
 		}
-		time.Sleep(time.Second)
 	}
+
+	for domainName, domains := range lux.Domains() {
+		for field, value := range domains {
+			setMetric(domainName, field, value)
+		}
+	}
+
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(":2112", nil)
+}
+
+type jsonMetric struct {
+	Unit  string `json:"unit"`
+	Value string `json:"value"`
+}
+
+func setMetric(domain, field, value string) {
+	gauge := gauges[domain]
+
+	var jv jsonMetric
+	err := json.Unmarshal([]byte(value), &jv)
+
+	v, err := strconv.ParseFloat(jv.Value, 64)
+	if err != nil {
+		log.WithFields(
+			log.Fields{
+				"domain": domain,
+				"field":  field,
+				"value":  value,
+			}).Warn("metric value parse failure")
+		return
+	}
+
+	id := field
+	if jv.Unit != "" {
+		id = id + "_" + jv.Unit
+	}
+
+	gauge.WithLabelValues(id).Set(v)
+	log.WithFields(log.Fields{
+		"id":    id,
+		"value": v,
+	}).Info("updated metric")
 }

@@ -15,7 +15,7 @@ type Luxtronik struct {
 	socket gowebsocket.Socket
 	c      chan string
 
-	onUpdate func(new []Location)
+	OnUpdate func(new []Location)
 }
 
 func (l *Luxtronik) Value(domain, key string) string {
@@ -26,29 +26,32 @@ func (l *Luxtronik) Domains() map[string]map[string]string {
 	return l.data
 }
 
-func (l *Luxtronik) update(new []item, filters Filters) {
+func (l *Luxtronik) update(new []item, filters Filters) []Location {
 	var domain, field string
+	var locs []Location
 	for _, updated := range new {
 		// luxtronik returns values we did not requested (!?). Ignore those
 		if _, ok := l.idRef[updated.ID]; !ok {
 			continue
 		}
 
-		domain = l.idRef[updated.ID].domain
-		field = l.idRef[updated.ID].field
+		domain = l.idRef[updated.ID].Domain
+		field = l.idRef[updated.ID].Field
 
 		loc, val := filters.filter(domain, field, updated.Value)
 
-		if l.data[loc.domain][loc.field] != val {
-			l.data[loc.domain][loc.field] = val
+		if l.data[loc.Domain][loc.Field] != val {
+			l.data[loc.Domain][loc.Field] = val
 			log.WithFields(log.Fields{
-				"domain": loc.domain,
-				"field":  loc.field,
+				"domain": loc.Domain,
+				"field":  loc.Field,
 				"value":  val,
 				"id":     updated.ID,
 			}).Debug("set value")
+			locs = append(locs, loc)
 		}
 	}
+	return locs
 }
 
 func Connect(ip string, filters Filters) *Luxtronik {
@@ -86,7 +89,8 @@ func Connect(ip string, filters Filters) *Luxtronik {
 		if err != nil {
 			panic(err)
 		}
-		lux.update(updatedVals.Items, filters)
+		updated := lux.update(updatedVals.Items, filters)
+		lux.OnUpdate(updated)
 	}
 
 	go func() {
