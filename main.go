@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -15,10 +17,17 @@ import (
 )
 
 var gauges = make(map[string]*prometheus.GaugeVec)
+var filterFile = flag.String("f", "", "filter configuration")
 
 func main() {
+	flag.Parse()
 	// log.SetLevel(log.DebugLevel)
-	filterSpec, err := ioutil.ReadFile(os.Args[1])
+	if *filterFile == "" {
+		fmt.Println("filter file not specified")
+		flag.Usage()
+		os.Exit(1)
+	}
+	filterSpec, err := ioutil.ReadFile(*filterFile)
 	if err != nil {
 		panic(err)
 	}
