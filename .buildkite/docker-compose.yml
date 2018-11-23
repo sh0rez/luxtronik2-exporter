@@ -1,0 +1,18 @@
+version: '2'
+services:
+  docker:
+    image: docker:stable
+    working_dir: $BUILDKITE_GIT_ROOT
+    volumes:
+      - ./config.json.sec:/docker/config.json
+      - $BUILDKITE_GIT_ROOT:$BUILDKITE_GIT_ROOT
+    environment:
+      DOCKER_HOST: tcp://daemon:2375/
+      DOCKER_CONFIG: /docker
+    env_file: buildkite.env
+    depends_on:
+      - daemon
+    entrypoint: /bin/sh -c
+  daemon:
+    image: docker:stable-dind
+    privileged: true

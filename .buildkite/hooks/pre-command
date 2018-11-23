@@ -1,0 +1,3 @@
+#!/bin/sh
+
+env | grep BUILDKITE > $BUILDKITE_GIT_ROOT/.buildkite/buildkite.env
