@@ -15,4 +15,5 @@ services:
     entrypoint: /bin/sh -c
   daemon:
     image: docker:stable-dind
+    command: --ipv6=false
     privileged: true
