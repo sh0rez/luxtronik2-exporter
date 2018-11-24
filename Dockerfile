@@ -11,4 +11,6 @@ RUN apk add build-base &&\
 FROM alpine
 COPY --from=builder /luxtronik2-exporter /luxtronik2-exporter
 RUN chmod +x /luxtronik2-exporter
+WORKDIR /lux
+VOLUME /lux
 CMD /luxtronik2-exporter
