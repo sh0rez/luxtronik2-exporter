@@ -21,11 +21,17 @@ var gauges = make(map[string]*prometheus.GaugeVec)
 type Config struct {
 	Address string `flag:"address" short:"a" help:"IP or hostname of the heatpump"`
 	Filters luxtronik.Filters
+	verbose bool `flag:"verbose" short:"v", help:"Show debug logs"`
 }
 
 func main() {
 	// get config from viper
 	config := getConfig()
+
+	log.SetLevel(log.InfoLevel)
+	if config.verbose {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	// connect to the heatpump
 	lux := luxtronik.Connect(config.Address, config.Filters)
@@ -133,5 +139,5 @@ func setMetric(domain, field, value string) {
 	log.WithFields(log.Fields{
 		"id":    id,
 		"value": v,
-	}).Info("updated metric")
+	}).Debug("updated metric")
 }

@@ -1,10 +1,11 @@
+verbose: true
 address: 172.21.20.103
 filters:
   # Make bools to bools
   - match:
       value: Ein|Aus
     set:
-      value: '{{$v := "-1"}} {{if (eq . "Ein")}} {{$v = "1"}} {{else}} {{$v = "0"}} {{end}} {{$d := dict "value" $v}} {{toJson $d}}' 
+      value: '{{$v := "-1"}} {{if (eq . "Ein")}} {{$v = "1"}} {{else}} {{$v = "0"}} {{end}} {{$d := dict "value" $v}} {{toJson $d}}'
       key: '{{if regexMatch "_state" . }} {{.}} {{else}} {{.}}_state {{end}}'
 
   # Split degree celsius
