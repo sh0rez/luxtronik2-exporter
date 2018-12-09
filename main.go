@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/fatih/structs"
@@ -19,18 +20,46 @@ var gauges = make(map[string]*prometheus.GaugeVec)
 
 // Config holds the configuration structure
 type Config struct {
+	Verbose bool   `flag:"verbose" short:"v", help:"Show debug logs"`
 	Address string `flag:"address" short:"a" help:"IP or hostname of the heatpump"`
 	Filters luxtronik.Filters
-	verbose bool `flag:"verbose" short:"v", help:"Show debug logs"`
+	Mutes    []struct {
+		Domain string
+		Field  string
+	}
 }
+
+type Mute struct {
+	domain, field *regexp.Regexp
+}
+type MuteList []Mute
+
+func (mts MuteList) muted(domain, field string) bool {
+	for _, m := range mts {
+		if m.domain.Match([]byte(domain)) && m.field.Match([]byte(field)) {
+			return true
+		}
+	}
+	return false
+}
+
+var mutes MuteList
 
 func main() {
 	// get config from viper
 	config := getConfig()
 
 	log.SetLevel(log.InfoLevel)
-	if config.verbose {
+	if config.Verbose {
 		log.SetLevel(log.DebugLevel)
+	}
+
+	mutes = make(MuteList, len(config.Mutes))
+	for i, m := range config.Mutes {
+		mutes[i] = Mute{
+			domain: regexp.MustCompile(m.Domain),
+			field:  regexp.MustCompile(m.Field),
+		}
 	}
 
 	// connect to the heatpump
@@ -121,12 +150,14 @@ func setMetric(domain, field, value string) {
 
 	v, err := strconv.ParseFloat(jv.Value, 64)
 	if err != nil {
-		log.WithFields(
-			log.Fields{
-				"domain": domain,
-				"field":  field,
-				"value":  value,
-			}).Warn("metric value parse failure")
+		if !mutes.muted(domain, field) {
+			log.WithFields(
+				log.Fields{
+					"domain": domain,
+					"field":  field,
+					"value":  value,
+				}).Warn("metric value parse failure")
+		}
 		return
 	}
 

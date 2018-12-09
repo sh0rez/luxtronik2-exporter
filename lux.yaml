@@ -1,5 +1,8 @@
-verbose: true
 address: 172.21.20.103
+verbose: false
+mutes:
+  - domain: "ablaufzeiten"
+    field: "wp-seit|ssp-zeit"
 filters:
   # Make bools to bools
   - match:
