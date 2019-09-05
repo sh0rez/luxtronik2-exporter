@@ -65,12 +65,18 @@ func Connect(ip string, filters Filters) *Luxtronik {
 
 	// register update func
 	lux.socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
-		var updatedVals category
+		var updatedVals content
 		err := xml.Unmarshal([]byte(message), &updatedVals)
 		if err != nil {
 			panic(err)
 		}
-		updated := lux.update(updatedVals.Items, filters)
+
+		items := []item{}
+		for _, c := range updatedVals.Categories {
+			items = append(items, c.Items...)
+		}
+
+		updated := lux.update(items, filters)
 		lux.OnUpdate(updated)
 	}
 

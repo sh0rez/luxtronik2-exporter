@@ -2,7 +2,7 @@ address: 172.21.20.103
 verbose: false
 mutes:
   - domain: "ablaufzeiten"
-    field: "wp-seit|ssp-zeit"
+    field: "wp-seit|ssp-zeit|vd-stand"
 filters:
   # Make bools to bools
   - match:
