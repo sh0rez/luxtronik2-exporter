@@ -1,0 +1,18 @@
+kind: pipeline
+name: default
+
+steps:
+- name: fetch
+  image: alpine
+  commands:
+    - apk add --no-cache git
+    - git fetch origin --tags
+- name: docker
+  image: plugins/docker
+  settings:
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+    repo: shorez/luxtronik2-exporter
+    auto_tag: true

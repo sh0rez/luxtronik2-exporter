@@ -1,7 +1,0 @@
-steps:
-  - name: ":hammer: build container"
-    command: ".buildkite/steps/10-build.sh"
-    plugins:
-      docker-compose#v2.1.0:
-        config: .buildkite/docker-compose.yml
-        run: docker
