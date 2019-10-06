@@ -8,18 +8,28 @@ import (
 
 	"github.com/fatih/structs"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sh0rez/luxtronik2-exporter/pkg/luxtronik"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/sh0rez/luxtronik2-exporter/pkg/luxtronik"
 )
 
 // Version of the app. To be set by ldflags
 var Version = "dev"
 
 // metrics
-var gauges = make(map[string]*prometheus.GaugeVec)
+var (
+	gauges = make(map[string]*prometheus.GaugeVec)
+
+	lastUpdate = promauto.NewGauge(prometheus.GaugeOpts{
+		Name:      "last_update",
+		Namespace: "luxtronik",
+		Help:      "UNIX timestamp of the last time an update was received from the heatpump",
+	})
+)
 
 // Config holds the configuration structure
 type Config struct {
@@ -115,6 +125,8 @@ func run(config *Config) {
 
 			setMetric(domain, field, value)
 		}
+
+		lastUpdate.SetToCurrentTime()
 	}
 
 	// expose all known values as metric
@@ -126,7 +138,7 @@ func run(config *Config) {
 
 	// serve the /metrics endpoint
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":2112", nil)
+	log.Fatalln(http.ListenAndServe(":2112", nil))
 }
 
 // jsonMetric represents the json-representation of a metric, created by the filter rules
