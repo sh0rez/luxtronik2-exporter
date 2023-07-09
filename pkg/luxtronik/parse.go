@@ -27,6 +27,7 @@ type item struct {
 	ID    string `xml:"id,attr"`
 	Name  string `xml:"name"`
 	Value string `xml:"value"`
+	Items []item `xml:"item"` // new array for depth more than one
 }
 
 // Location is just a pair of Domain and Field and represents the location of data in our datastore
@@ -61,6 +62,8 @@ func parseStructure(response string, filters Filters) (data map[string]map[strin
 	if err != nil {
 		panic(err)
 	}
+	// change nested structure to depth of one level
+	structure = flattenNestedStructure(structure)
 
 	// Stores the data sorted in Domain and Field
 	data = make(map[string]map[string]string)
@@ -87,6 +90,33 @@ func parseStructure(response string, filters Filters) (data map[string]map[strin
 		}
 	}
 	return data, idRef
+}
+
+// flatten the nested structure to get only depth of one
+func flattenNestedStructure(data content) content {
+	for indc, cat := range data.Categories {
+		var newItems []item
+		for indi, i := range cat.Items {
+			for _, j := range i.Items {
+				// create new item
+				var ni item
+				ni.Name = i.Name + "_" + j.Name
+				ni.Value = j.Value
+				ni.ID = j.ID
+				// append new item to parent item
+				newItems = append(newItems, ni)
+			}
+			// if we had add new item(s), then delete the content of this entry
+			if len(newItems) > 0 {
+				data.Categories[indc].Items[indi].Name = ""
+				data.Categories[indc].Items[indi].ID = ""
+				data.Categories[indc].Items[indi].Items = nil
+			}
+		}
+		// append new items to category
+		data.Categories[indc].Items = append(cat.Items, newItems...)
+	}
+	return data
 }
 
 // filter applies the supplied filters to key and value and enforces the filter constraints. See Filters for reference.
