@@ -70,6 +70,8 @@ func Connect(ip string, filters Filters) *Luxtronik {
 		if err != nil {
 			panic(err)
 		}
+		// change nested structure to depth of one level
+		updatedVals = flattenNestedStructure(updatedVals)
 
 		items := []item{}
 		for _, c := range updatedVals.Categories {
